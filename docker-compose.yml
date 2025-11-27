@@ -1,0 +1,73 @@
+services:
+
+  # ============================
+  # Hadoop NameNode
+  # ============================
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    environment:
+      - CLUSTER_NAME=hadoop
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
+    volumes:
+      - namenode_data:/hadoop/dfs/name
+    ports:
+      - "9870:9870"
+      - "8020:8020"
+
+  # ============================
+  # Hadoop DataNode
+  # ============================
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    environment:
+      - CLUSTER_NAME=hadoop
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
+      - NAMENODE_HOST=namenode
+    volumes:
+      - datanode_data:/hadoop/dfs/data
+    depends_on:
+      - namenode
+    ports:
+      - "9864:9864"
+
+  # ============================
+  # Spark Master
+  # ============================
+  spark-master:
+    build: .
+    container_name: spark-master
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_HOST=spark-master
+    ports:
+      - "7077:7077"
+      - "8080:8080"
+    volumes:
+      - ./scripts:/opt/spark-apps
+    depends_on:
+      - namenode
+      - datanode
+    command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.master.Master"]
+
+  # ============================
+  # Spark Worker
+  # ============================
+  spark-worker:
+    build: .
+    container_name: spark-worker
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./scripts:/opt/spark-apps
+    depends_on:
+      - spark-master
+    command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.worker.Worker", "spark://spark-master:7077"]
+
+volumes:
+  namenode_data:
+  datanode_data:
