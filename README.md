@@ -68,10 +68,18 @@ After these steps the script should start and only finish after the model has be
 
 ## 📊 Results
 
+| Model                | Accuracy | Recall | Time* |
+|----------------------|----------|----------|--------|
+| Colab Version        | 82 % | 58 % | 20.55 | 
+| Local Version        | 91 % | 85 % | 14.7 |
+| Original Model       | 90.2 % | 93.9 % | 63.2 |
+
+*The time measurement is uncertain because the paper measures time in units of time and I measured in seconds. So those results can't really be compared.
+
 
 🔎 **Insights**:  
-While it was possible to achieve great results with the Local implementation, close to 90% of accuracy and 89% on Recall, the Colab version suffered a lot form its limited resources on the free version of the tool. Because of that the dataset had to be substantially reduced so that a lockup wouldn't happen during the Spark processing. With this disadvantadge, the Colab version could only achieve 58% of Accuary and 2% of Recall. 
+While it was possible to achieve great results with the Local implementation, close to 90% of accuracy and 89% on Recall, the Colab version suffered a lot form its limited resources on the free version of the tool. Because of that the dataset had to be substantially reduced so that a lockup wouldn't happen during the Spark processing. With this disadvantadge, the Colab version could only achieve 82% of Accuracy and 58% of Recall. 
 
-Comparing the original experiment with the our best attempt, the local implementation, we could achieve similar results, but since changes were made to the implementation described in the paper, we can't fully compare the results achieved.
+Comparing the original experiment with the best attempt, the local implementation, we could achieve similar results, but since changes were made to the implementation described in the paper, we can't fully compare the results achieved.
 
 More than faithfully reproducing the experiments and result, the major purpose of this project was to practice using some of the big data tools available nowadays, which was achieved.
