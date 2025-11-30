@@ -13,45 +13,66 @@ Docker Desktop installed in a local machine.
 ---
 
 ## ⚙️ Google Colab
-- For the Google Colab implementation the only needed files are the Colab notebook and the two folders, Data, with the dataset files and Results, where the generated files and other results will be stored.
-The folders should be in the user's Google Drive, since the notebook mounts the paths during the execution.
-- It is important to change the path of the variables "DATA_DIR" and "OUTPUT_DIR" on Cell #2 before execution
+- For the Google Colab implementation the only needed files are the Colab notebook and the two folders: Data, with the dataset files, and Results, where the generated files with the results will be stored.
+The folders should be in the user's Google Drive, since the notebook mounts the drive during the execution.
+- It's important to change the path of the variables **"DATA_DIR"** and **"OUTPUT_DIR"** to the according paths on Cell #2 before execution.
 
 ---
 
 ## 📦 Local Implementation
-- **Classificação das variáveis**:  
-  - Variáveis categóricas (ex.: forma de pagamento, tipo de contrato).  
-  - Variáveis numéricas (ex.: tenure, valor mensal da fatura).
+Using **Docker + Hadoop + Spark** to run the full pipeline in a fully distributed environment.
 
-- **Pré-processamento**:  
-  - Normalização/escala para variáveis numéricas, quando necessário.  
-  - Codificação de variáveis categóricas com *one-hot encoding* (`pd.get_dummies`).  
-  - Separação dos dados em **treino (70%)** e **teste (30%)**.  
+- **Environment and Needed Tools**:
+  The experiment was conducted in a machine with Windows 11, 32GB RAM and the docker container was built with 6GB (this configuration can be changed in the code, in the spark-session creationmment, if necessary).
+  -  Visual Studio (optional)
+  - [Docker](https://www.docker.com/)
 
-- **Justificativas de modelagem**:  
-  - **Regressão Logística** escolhida por sua interpretabilidade.  
-  - **Random Forest** aplicada para capturar relações não lineares e identificar variáveis mais importantes.  
+- **Structure and Needed Files**:
+Example of how the folder should be for the code to work.
+
+- `docker-spark/`
+  - `docker-compose.yml`
+  - `Dockerfile`
+  - `requeirements.txt`
+  - `README.md` 
+  - `scripts/`
+    - `bdp_project.py`
+    - `Data/`
+       - [`fake-and-real-news-dataset/`](https://www.kaggle.com/datasets/clmentbisaillon/fake-and-real-news-dataset)
+         - `Fake.csv`
+         - `True.csv`
+      - [`LIAR-DATASET/`](https://www.kaggle.com/datasets/doanquanvietnamca/liar-dataset?resource=download)
+        - `test.tsv`
+        - `train.tsv`
+        - `valid.tsv`
+    - `Results/`
+      - Generated files during the execution
+ 
+- **How to Run**:
+  With all the repositories in the correct structure, open the "docker-spark" folder on a terminal on VSCode and execute the following commands:
+
+ 
+``` docker-compose build ```
+
+``` docker-compose up -d ```
+
+``` docker exec -it spark-master bash ```
+
+Now, already inside the spark-master the following code:
+
+``` /opt/spark/bin/spark-submit /opt/spark-apps/bdp_project.py ```
+
+After these steps the script should start and only finish after the model has been trained and evaluated.
 
 ---
 
-## 📊 Análise Exploratória (EDA)
-Durante a EDA foram gerados gráficos e insights, como:  
-- Distribuição de clientes por tipo de contrato e sua relação com churn.  
-- Boxplots comparando valor da fatura mensal entre clientes que cancelaram ou não.  
-- Gráficos de barras mostrando a influência da forma de pagamento na taxa de churn.  
+## 📊 Results
 
-Essas visualizações ajudaram a direcionar a modelagem e entender os fatores mais relevantes para evasão.
-
----
-Foram avaliados dois modelos de Machine Learning: **Regressão Logística** e **Random Forest**.  
-Os principais resultados obtidos foram:
-
-| Modelo               | Acurácia | Precisão | Recall | F1-score | AUC-ROC |
-|----------------------|----------|----------|--------|----------|---------|
-| Regressão Logística  | 75 %   | 52 %   | 81 % | 63 %   | 0.84    |
-| Random Forest        | 78 % | 58 % | 60 % | 59 % | 0.82 |
   
 
 🔎 **Insights**:  
-Embora tenha demonstrado pior acurácia, o modelo de **Regressão Logística** apresentou o melhor desempenho geral, equilibrando recall e AUC-ROC, o que é essencial para prever corretamente os clientes que realmente irão cancelar.
+While it was possible to achieve great results with the Local implementation, close to 90% of accuracy and 89% on Recall, the Colab version suffered a lot form its limited resources on the free version of the tool. Because of that the dataset had to be substantially reduced so that a lockup wouldn't happen during the Spark processing. With this disadvantadge, the Colab version could only achieve 58% of Accuary and 2% of Recall. 
+
+Comparing the original experiment with the our best attempt, the local implementation, we could achieve similar results, but since changes were made to the implementation described in the paper, we can't fully compare the results achieved.
+
+More than faithfully reproducing the experiments and result, the major purpose of this project was to practice using some of the big data tools available nowadays, which was achieved.
