@@ -13,7 +13,7 @@ Docker Desktop installed in a local machine.
 ---
 
 ## ⚙️ Google Colab
-- For the Google Colab implementation the only needed files are the Colab notebook and the two folders: Data, with the dataset files, and Results, where the generated files with the results will be stored.
+- For the Google Colab implementation the only needed files are the [Colab notebook](https://colab.research.google.com/drive/1NWgd49RnairWfTNXNAdWriSgY-2ssqi3?usp=sharing) and the two folders: Data, with the dataset files, and Results, where the generated files with the results will be stored.
 The folders should be in the user's Google Drive, since the notebook mounts the drive during the execution.
 - It's important to change the path of the variables **"DATA_DIR"** and **"OUTPUT_DIR"** to the according paths on Cell #2 before execution.
 
@@ -68,7 +68,6 @@ After these steps the script should start and only finish after the model has be
 
 ## 📊 Results
 
-  
 
 🔎 **Insights**:  
 While it was possible to achieve great results with the Local implementation, close to 90% of accuracy and 89% on Recall, the Colab version suffered a lot form its limited resources on the free version of the tool. Because of that the dataset had to be substantially reduced so that a lockup wouldn't happen during the Spark processing. With this disadvantadge, the Colab version could only achieve 58% of Accuary and 2% of Recall. 
