@@ -12,16 +12,17 @@ Docker Desktop installed in a local machine.
 
 ---
 
-## 📂 Google Colab
-- `Telecom_X_Final.ipynb` → notebook principal com todo o pipeline de análise, modelagem e avaliação.  
-- `dados.csv` → conjunto de dados após o pré-processamento.  
+## ⚙️ Google Colab
+- For the Google Colab implementation the only needed files are the Colab notebook and the two folders, Data, with the dataset files and Results, where the generated files and other results will be stored.
+The folders should be in the user's Google Drive, since the notebook mounts the paths during the execution.
+- It is important to change the path of the variables "DATA_DIR" and "OUTPUT_DIR" on Cell #2 before execution
 
 ---
 
-## ⚙️ Preparação dos Dados
+## 📦 Local Implementation
 - **Classificação das variáveis**:  
   - Variáveis categóricas (ex.: forma de pagamento, tipo de contrato).  
-  - Variáveis numéricas (ex.: tenure, valor mensal da fatura).  
+  - Variáveis numéricas (ex.: tenure, valor mensal da fatura).
 
 - **Pré-processamento**:  
   - Normalização/escala para variáveis numéricas, quando necessário.  
