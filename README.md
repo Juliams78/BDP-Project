@@ -33,7 +33,7 @@ Example of how the folder should be for the code to work.
 - `docker-spark/`
   - `docker-compose.yml`
   - `Dockerfile`
-  - `requeirements.txt`
+  - `requirements.txt`
   - `README.md` 
   - `scripts/`
     - `bdp_project.py`
