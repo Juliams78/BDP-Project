@@ -1,0 +1,9 @@
+numpy
+pandas
+pyspark
+tensorflow
+tqdm
+pickle5
+matplotlib 
+seaborn
+scikit-learn

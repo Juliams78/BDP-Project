@@ -1,6 +1,8 @@
-# -*- coding: utf-8 -*-
-"""BDP-Project Docker-ready version - Logging & flush improved"""
+#-------------------------------------------------------------------------
+# FAKE NEWS DETECTION USING SPARK AND DNN - Local Machine Implementation
+#-------------------------------------------------------------------------
 
+#Imports
 import os
 import re
 import json
@@ -9,7 +11,6 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
 from pyspark.sql import SparkSession
 from pyspark.ml.feature import RegexTokenizer, StopWordsRemover, NGram, HashingTF, IDF
 from pyspark.ml import Pipeline
@@ -22,13 +23,15 @@ from sklearn.metrics import accuracy_score, recall_score
 tqdm.pandas()
 
 # --------------------------
-# Função de log customizada
+# Customized Log Function 
+# Makes the logs present in the code show up in blue during the execution in the terminal
 # --------------------------
 def log(msg):
     print(f"\033[94m[INFO]\033[0m {msg}", flush=True)
 
 # --------------------------
-# 1️⃣ Definir paths
+# 1- Defining Paths
+# Using the path that is mounted during the docker build, if a new path is chosen it needs to be present in the docker-compose file
 # --------------------------
 DATA_DIR = '/opt/spark-apps/Data'
 OUTPUT_DIR = '/opt/spark-apps/Results'
@@ -38,7 +41,8 @@ log(f"DATA_DIR = {DATA_DIR}")
 log(f"OUTPUT_DIR = {OUTPUT_DIR}")
 
 # --------------------------
-# 2️⃣ Função para limpeza de texto
+# 2- Text cleaning function
+# Just a simple text cleaning function, remove accents, numbers, link markers (http) and transforms all text to lower case
 # --------------------------
 def clean_text(text):
     if not isinstance(text, str):
@@ -50,7 +54,7 @@ def clean_text(text):
     return text
 
 # --------------------------
-# 3️⃣ Carregar datasets
+# 3- Loading datasets
 # --------------------------
 fake_path = os.path.join(DATA_DIR,'fake-and-real-news-dataset', 'Fake.csv')
 true_path = os.path.join(DATA_DIR,'fake-and-real-news-dataset', 'True.csv')
@@ -58,17 +62,17 @@ liar_train = os.path.join(DATA_DIR, 'LIAR-DATASET', 'train.tsv')
 liar_test  = os.path.join(DATA_DIR, 'LIAR-DATASET', 'test.tsv')
 liar_valid = os.path.join(DATA_DIR, 'LIAR-DATASET', 'valid.tsv')
 
-log("Verificando paths dos datasets:")
+log("Verifying the dataset paths:")
 for p in [fake_path, true_path, liar_train, liar_test, liar_valid]:
     log(f"{p} exists? {os.path.exists(p)}")
 
-# Load Fake/True
+# Load Fake/True dataset and including the labels
 fake_df = pd.read_csv(fake_path)
 true_df = pd.read_csv(true_path)
 fake_df['label'] = 0
 true_df['label'] = 1
 
-# Load LIAR
+# Load LIAR dataset
 col_names = ["id","label","statement","subject","speaker","speaker_job_title","state_info","party_affiliation",
              "barely_true_counts","false_counts","half_true_counts","mostly_true_counts","pants_on_fire_counts","context"]
 liar_parts = []
@@ -80,6 +84,7 @@ for p in [liar_train, liar_test, liar_valid]:
 liar_df = pd.concat(liar_parts, ignore_index=True) if liar_parts else pd.DataFrame(columns=col_names)
 
 # Map LIAR labels to binary
+# The LIAR dataset had different categories for fake news, for this project everything that is different from "True", was considered "Fake"
 if not liar_df.empty:
     liar_df['label'] = liar_df['label'].apply(lambda x: 1 if str(x).lower()=='true' else 0)
 
@@ -89,15 +94,17 @@ if 'text' not in fake_df.columns and 'title' in fake_df.columns:
 if 'text' not in true_df.columns and 'title' in true_df.columns:
     true_df['text'] = true_df['title'] + ' ' + true_df.get('text','')
 
+# Transforming the dataset labels for future merge
 fake_small = fake_df[['text','label']].copy()
 true_small = true_df[['text','label']].copy()
 liar_small = liar_df[['statement','label']].rename(columns={'statement':'text'}).copy() if not liar_df.empty else pd.DataFrame(columns=['text','label'])
 
+# Merging the datasets
 all_df = pd.concat([fake_small, true_small, liar_small], ignore_index=True)
 all_df['clean_text'] = all_df['text'].progress_apply(clean_text)
 all_df = all_df[all_df['clean_text'].str.len() > 0].reset_index(drop=True)
 
-# Save cleaned dataset
+# Save cleaned dataset to a csv file
 cleaned_path = os.path.join(OUTPUT_DIR, 'combined_cleaned.csv')
 try:
     all_df.to_csv(cleaned_path, index=False)
@@ -106,7 +113,7 @@ except Exception as e:
     log(f"Erro ao salvar cleaned dataset: {e}")
 
 # --------------------------
-# 4️⃣ Spark Session
+# 4- Spark Session
 # --------------------------
 spark = SparkSession.builder \
     .appName('fake-news-preprocessing-ngram') \
@@ -116,13 +123,15 @@ spark = SparkSession.builder \
     .getOrCreate()
 log(f"Spark version: {spark.version}")
 
-# Convert Pandas → Spark
+# Convert Pandas -> Spark
 sdf = spark.createDataFrame(all_df[['clean_text', 'label']].rename(columns={'clean_text': 'text'}))
 log(f"Input size: {sdf.count():,} rows")
 
 # --------------------------
-# 5️⃣ Spark preprocessing pipeline
+# 5- Spark preprocessing pipeline
 # --------------------------
+
+# Tokenize the text using ngrams (bigrams), this part would be essencial if a classical model was used
 tokenizer = RegexTokenizer(inputCol='text', outputCol='tokens', pattern='\\W')
 remover = StopWordsRemover(inputCol='tokens', outputCol='filtered')
 ngram2 = NGram(n=2, inputCol='filtered', outputCol='bigrams')
@@ -142,7 +151,7 @@ pipeline_tfidf = Pipeline(stages=[hashTF, idf])
 model_tfidf = pipeline_tfidf.fit(sdf_ng)
 sdf_feat = model_tfidf.transform(sdf_ng)
 
-#sdf_sample = sdf_feat.sample(fraction=0.50, seed=42)
+#sdf_sample = sdf_feat.sample(fraction=0.50, seed=42) # this line can be used to create a sample of the dataset, might be needed if the avilable memory for execution is limited
 pdf = sdf_feat.select("tfidf_features", "label").toPandas()
 log(f"TF-IDF size = {len(pdf)}")
 
@@ -154,11 +163,14 @@ try:
     np.save(os.path.join(OUTPUT_DIR, 'y_labels.npy'), y)
     log("Saved TF-IDF features.")
 except Exception as e:
-    log(f"Erro ao salvar TF-IDF: {e}")
+    log(f"Error while saving TF-IDF: {e}")
 
 # --------------------------
-# 6️⃣ LSTM tokenizer and sequences
+# 6- LSTM tokenizer and sequences
 # --------------------------
+
+# Tokenization for the LSTM model, is different from the previous tokenization, as it preserves the sequence of the words
+
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 
@@ -178,10 +190,10 @@ try:
         pickle.dump(tokenizer, f)
     log("Saved sequences and tokenizer.")
 except Exception as e:
-    log(f"Erro ao salvar sequences/tokenizer: {e}")
+    log(f"Error while saving sequences/tokenizer: {e}")
 
 # --------------------------
-# 7️⃣ Parallel LSTM training with Spark RDD
+# 7- Parallel LSTM training with Spark RDD
 # --------------------------
 sc = spark.sparkContext
 
@@ -194,22 +206,24 @@ configs = [
 with open(os.path.join(OUTPUT_DIR, 'configs.json'), 'w') as f:
     json.dump(configs, f)
 
-log("Iniciando treinamento paralelo em Spark RDD...")
+log("Starting Parallel training with Spark RDD...")
 
 def train_lstm_worker(cfg):
     from tensorflow.keras.models import Sequential
     from tensorflow.keras.layers import Embedding, LSTM, Dense, Dropout
-    from sklearn.model_selection import train_test_split
-    from sklearn.metrics import accuracy_score
-    import os
+    import time
+
+    start_total = time.time()
 
     try:
         X = np.load('/opt/spark-apps/Results/X_seq.npy', mmap_mode='r')
         y = np.load('/opt/spark-apps/Results/y_seq.npy', mmap_mode='r')
-        # Reduz dataset se for muito grande
+        
+        # Reduce dataset if too large
         if len(X) > 50000:
             idx = np.random.choice(len(X), size=40000, replace=False)
             X, y = X[idx], y[idx]
+
         X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
         model = Sequential([
@@ -218,36 +232,56 @@ def train_lstm_worker(cfg):
             Dropout(cfg['drop']),
             Dense(1, activation='sigmoid')
         ])
-        model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-        model.fit(X_train, y_train, epochs=cfg['epochs'], batch_size=cfg['batch_size'], verbose=1)
 
+        model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+        # Training
+        start_train = time.time()
+        model.fit(X_train, y_train, epochs=cfg['epochs'], batch_size=cfg['batch_size'], verbose=1)
+        end_train = time.time()
+
+        # Validation prediction
+        start_pred = time.time()
         preds = (model.predict(X_val, batch_size=512, verbose=0) > 0.5).astype(int).flatten()
+        end_pred = time.time()
+
         acc = float(accuracy_score(y_val, preds))
         weights_path = os.path.join('/opt/spark-apps/Results', cfg['name'] + '.weights.h5')
         model.save_weights(weights_path)
         tf.keras.backend.clear_session()
-        log(f"Finished {cfg['name']} with acc={acc:.4f}")
-        return {'name': cfg['name'], 'acc': acc, 'weights': weights_path}
+
+        total_time = time.time() - start_total
+
+        log(f"Finished {cfg['name']} | acc={acc:.4f} | "
+            f"train={end_train - start_train:.2f}s | "
+            f"pred={end_pred - start_pred:.2f}s | "
+            f"total={total_time:.2f}s")
+
+        return {
+            'name': cfg['name'],
+            'acc': acc,
+            'weights': weights_path,
+            'train_time': end_train - start_train,
+            'pred_time': end_pred - start_pred,
+            'total_time': total_time
+        }
+
     except Exception as e:
         log(f"Error in {cfg['name']}: {e}")
         return {'name': cfg['name'], 'error': str(e)}
 
 try:
-    # Cria RDD com partições suficientes
     rdd = sc.parallelize(configs, len(configs))
-    results = rdd.map(train_lstm_worker).collect()  # collect após map garante que tudo termine
+    results = rdd.map(train_lstm_worker).collect()
     with open(os.path.join(OUTPUT_DIR, 'parallel_results.json'), 'w') as f:
         json.dump(results, f)
     log("✅ Parallel training finished. Results saved.")
 except Exception as e:
-    log(f"Erro durante treinamento paralelo: {e}")
-
-
+    log(f"Error during parallel training: {e}")
 
 #--------------------------------------------
-# Evaluating the models
-#--------------------------------------
-
+# 8- Building the Ensemble model and evaluation
+#--------------------------------------------
 
 start_eval = time.time()
 
@@ -261,10 +295,7 @@ X_tfidf_test = X_tfidf[idx]
 y_test = y_true[idx]
 X_seq_test = X_seq[idx]
 
-# Load models
-models = {}
-
-# LSTM loaders
+# Load LSTM models
 def build_lstm(units):
     m = tf.keras.Sequential([
         tf.keras.layers.Embedding(10000, 128),
@@ -284,7 +315,7 @@ lstm_models = {}
 for name, path, units in lstm_paths:
     if os.path.exists(path):
         model = build_lstm(units)
-        model.build(input_shape=(None, X_seq_test.shape[1])) # Build the model with input shape
+        model.build(input_shape=(None, X_seq_test.shape[1]))
         model.load_weights(path)
         lstm_models[name] = model
     else:
@@ -294,37 +325,41 @@ for name, path, units in lstm_paths:
 model_times = {}
 preds = {}
 
-for name, model in models.items():
-    t0 = time.time()
-    preds[name] = model.predict(X_tfidf_test)
-    model_times[name] = time.time() - t0
-
 for name, model in lstm_models.items():
     t0 = time.time()
     p = (model.predict(X_seq_test, batch_size=256, verbose=0) > 0.5).astype(int).flatten()
     preds[name] = p
     model_times[name] = time.time() - t0
 
-# Load individual model training results
+# Load training results
 with open(os.path.join(OUTPUT_DIR, 'parallel_results.json'), 'r') as f:
     training_results = json.load(f)
 
-# Create a dictionary for easier lookup of training accuracies
 training_acc_map = {res['name']: res['acc'] for res in training_results}
+training_time_map = {res['name']: res.get('train_time', None) for res in training_results}
 
 print("\n📊 Individual Model Performance:")
 for name_short, path, units in lstm_paths:
-    model_name = name_short.replace('lstm','lstm_') # Adjust name to match stored results
+    model_name = name_short.replace('lstm','lstm_')
+
     if model_name in training_acc_map and name_short in preds:
         train_acc = training_acc_map[model_name]
+        train_time = training_time_map.get(model_name, None)
         eval_preds = preds[name_short]
         eval_acc = accuracy_score(y_test, eval_preds)
         proc_time = model_times.get(name_short, 0.0)
-        print(f"{name_short.upper()} \n  Training Accuracy: {train_acc:.4f}\n  Evaluation Accuracy: {eval_acc:.4f}\n  Processing Time: {proc_time:.3f}s\n")
-    else:
-        print(f"Warning: Could not find full data for {model_name}")
 
-# Hybrid majority voting
+        print(f"{name_short.upper()}")
+        print(f"  Training Accuracy:  {train_acc:.4f}")
+        print(f"  Evaluation Accuracy:{eval_acc:.4f}")
+        if train_time is not None:
+            print(f"  Training Time:      {train_time:.2f}s")
+        print(f"  Processing Time:    {proc_time:.3f}s\n")
+    else:
+        print(f"Warning: Missing data for model {model_name}")
+
+# Ensemble prediction with timing
+ensemble_start = time.time()
 if len(preds) == 0:
     print("No models were loaded for evaluation. Cannot perform ensemble prediction.")
     ensemble_pred = np.array([])
@@ -334,8 +369,7 @@ elif len(preds) == 1:
 else:
     all_preds = np.array(list(preds.values()))
     ensemble_pred = (np.sum(all_preds, axis=0) >= (all_preds.shape[0] / 2)).astype(int)
-
-end_eval = time.time()
+ensemble_time = time.time() - ensemble_start
 
 # Metrics
 if ensemble_pred.size > 0:
@@ -345,18 +379,54 @@ if ensemble_pred.size > 0:
     print("\n📊 Ensemble Results:")
     print(f"Accuracy: {acc:.4f}")
     print(f"Recall: {rec:.4f}")
+    #print(f"Ensemble processing time: {ensemble_time:.3f}s")
 else:
     print("\n📊 Ensemble Results: No predictions to evaluate.")
 
+end_eval = time.time()
 print(f"Total evaluation time: {end_eval - start_eval:.2f} seconds")
-print("\n⏱ Model processing times:")
+print("\nModel processing times:")
 for name, t in model_times.items():
     print(f"{name} \u2192 {t:.3f}s")
 
 
 
+#-----------------------------------------
+# 9 - Confusion Matrix
+# ----------------------------------------
+
+import matplotlib
+matplotlib.use("Agg")   # backend headless
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
+
+# Directory to save result
+cm_path = os.path.join(OUTPUT_DIR, "confusion_matrix.png")
+
+if ensemble_pred.size > 0:
+    cm = confusion_matrix(y_test, ensemble_pred)
+
+    plt.figure(figsize=(6, 5))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+                xticklabels=['Fake (0)', 'True (1)'],
+                yticklabels=['Fake (0)', 'True (1)'])
+    plt.title('Ensemble Model Confusion Matrix')
+    plt.ylabel('Actual Label')
+    plt.xlabel('Predicted Label')
+
+    # Save figure
+    plt.savefig(cm_path, dpi=300, bbox_inches='tight')
+    log(f"Confusion matrix saved at {cm_path}")
+
+    plt.close()  # prevent memory leak
+
+else:
+    log("Cannot create confusion matrix: Ensemble predictions are empty.")
+
+
 
 # --------------------------
-# ✅ Fim do script
+# ✅ End of Script
 # --------------------------
-log("Script Docker-ready concluído!")
+log("Script for Docker completed!")
