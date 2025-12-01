@@ -424,6 +424,19 @@ if ensemble_pred.size > 0:
 else:
     log("Cannot create confusion matrix: Ensemble predictions are empty.")
 
+#------------------------------------------------------------------------------
+# 10 - Saving the models for future use (needs to re-do the ensemble for using)
+#------------------------------------------------------------------------------
+
+# Ensure lstm_models is available
+if 'lstm_models' in locals() and lstm_models:
+    log("Saving individual LSTM models...")
+    for name, model_obj in lstm_models.items():
+        model_save_path = os.path.join(OUTPUT_DIR, f'{name}_complete_model.keras')
+        model_obj.save(model_save_path)
+        log(f"Saved {name} model to {model_save_path}")
+else:
+    log("No LSTM models found to save.")
 
 
 # --------------------------
