@@ -68,11 +68,11 @@ After these steps the script should start and only finish after the model has be
 
 ## 📊 Results
 
-| Model                | Accuracy | Recall | Time* |
-|----------------------|----------|----------|--------|
-| Colab Version        | 82 % | 58 % | 20.55 | 
-| Local Version        | 91 % | 85 % | 14.7 |
-| Original Model       | 90.2 % | 93.9 % | 63.2 |
+| Model                | Accuracy | Recall | Time* | F-Score
+|----------------------|----------|----------|--------|-------|
+| Colab Version        | 80 % | 50 % | 20.55 | 66%
+| Local Version        | 91 % | 90 % | 15.7 | 94%
+| Original Model       | 90.2 % | 93.9 % | 63.2 | x
 
 *The time measurement is uncertain because the paper measures time in units of time and I measured in seconds. So those results can't really be compared.
 
